@@ -1,0 +1,1146 @@
+             -- Draconic reactor control made by Freeazzy from McSkill.ru
+-- Редактированная версия для lua 5.3
+-- Редактировал LiteShock from centurymine.net
+-- Добвил последние изменения mak7on22 from centurymine.net discord @ru_kolibri 25.07.2023
+-- Убрана реклама
+-- Исправлено форматирование чисел
+
+local event = require("event")
+local term = require("term")
+local os = require("os")
+local com = require("component")
+local keyb = require("keyboard")
+local gpu = com.gpu
+local fileName = "/home/gtadrs15.txt"
+local cfgName = "/home/DracReactorConfig.cfg"
+local function parseNum(str)
+local n = ""
+for i=1,#str do
+local ch = str:byte(i,i)
+if ch >= 48 and ch <= 57 or ch == 46 then
+n = n..string.char(ch)
+end
+end
+if n ~= "" then
+return tonumber(n)
+else return n
+end
+end
+local cfg = {}
+local confnames = 
+{
+[1] = "default_interval",
+[2] = "ctrl_interval",
+[3] = "shift_interval",
+[4] = "ctrlShift_interval",
+[5] = "shield",
+[6] = "tempCriticalEdge",
+[7] = "forceModeTempLowEdge",
+[8] = "forceModeStepCase",
+[9] = "forceModeStep",
+[10] = "safeModeTempWaitEdge",
+[11] = "safeModeTempToWaitEdge",
+[12] = "safeModeStepCase",
+[13] = "safemodeStep"     
+}
+local function readParse(name)
+local file = io.open(name,"r")
+if file then
+local tab = {}
+local i = 1
+while true do
+local str = file:read("*l")
+if str == nil then
+break
+end
+if parseNum(str) ~= "" then
+tab[i] = parseNum(str)
+i=i+1
+end
+end
+return tab
+else 
+return false
+end
+end
+local function configWrite(name)
+if not readParse(name) then
+local file = io.open(name,"w")
+file:write([[
+-- Интервалы для кнопок +/-
+default_interval = 1000
+ctrl_interval = 5000
+shift_interval = 10000
+ctrlShift_interval = 20000
+-- Автономный режим:
+-- Основные константы
+shield = 10 - Щиты будут автоматически поддерживаться на этом уровне ( в %)
+tempCriticalEdge = 8100 -- Если температура превысит это значение, программа экстренно понизит поток вывода;
+-- Форсированный режим
+forceModeTempLowEdge = 7500 -- Пока температура не превысит это значение, программа будет работать в форсированном режиме, иначе - перейдет в безопасный режим;
+forceModeStepCase = 5000  -- Если разница между текущей выработкой энергии и выставленным потоком превысит это значение, то к потоку добавится
+forceModeStep = 20000 -- это значение
+-- безопасный режим
+safeModeTempWaitEdge = 8000 -- Если температура превысит это значение, программа будет ожидать,
+safeModeTempToWaitEdge = 7600 -- пока температура не понизится до этого значения;
+safeModeStepCase = 0 -- Если разница между текущей выработкой энергии и выставленным потоком превысит это значение, то к потоку добавится
+safemodeStep = 8000 -- это значение]])
+file:close()
+elseif #readParse(name) < 13 then
+local file = io.open(name,"w")
+file:write([[
+-- Интервалы для кнопок +/-
+default_interval = 1000
+ctrl_interval = 5000
+shift_interval = 10000
+ctrlShift_interval = 20000
+-- Автономный режим:
+-- Основные константы
+shield = 10 - Щиты будут автоматически поддерживаться на этом уровне ( в %)
+tempCriticalEdge = 8100 -- Если температура превысит это значение, программа экстренно понизит поток вывода;
+-- Форсированный режим
+forceModeTempLowEdge = 7500 -- Пока температура не превысит это значение, программа будет работать в форсированном режиме, иначе - перейдет в безопасный режим;
+forceModeStepCase = 5000  -- Если разница между текущей выработкой энергии и выставленным потоком превысит это значение, то к потоку добавится
+forceModeStep = 20000 -- это значение
+-- безопасный режим
+safeModeTempWaitEdge = 8000 -- Если температура превысит это значение, программа будет ожидать,
+safeModeTempToWaitEdge = 7600 -- пока температура не понизится до этого значения;
+safeModeStepCase = 0 -- Если разница между текущей выработкой энергии и выставленным потоком превысит это значение, то к потоку добавится
+safemodeStep = 8000 -- это значение]])
+file:close()
+elseif cfg.default_interval ~= nil and
+cfg.ctrl_interval ~= nil and
+cfg.shift_interval ~= nil and
+cfg.ctrlShift_interval ~= nil and
+cfg.shield ~= nil and
+cfg.tempCriticalEdge ~= nil and
+cfg.forceModeTempLowEdge ~= nil and
+cfg.forceModeStepCase ~= nil and
+cfg.forceModeStep ~= nil and
+cfg.safeModeTempWaitEdge ~= nil and
+cfg.safeModeTempToWaitEdge ~= nil and
+cfg.safeModeStepCase ~= nil and
+cfg.safemodeStep ~= nil then
+local file = io.open(name,"w")
+file:write(string.format(
+[[
+-- Интервалы для кнопок +/-
+default_interval = %.0f 
+ctrl_interval = %.0f 
+shift_interval = %.0f 
+ctrlShift_interval = %.0f 
+-- Автономный режим:
+-- Основные константы
+shield = %0.2f - Щиты будут автоматически поддерживаться на этом уровне ( в %)
+tempCriticalEdge = %.0f -- Если температура превысит это значение, программа экстренно понизит поток вывода;
+-- Форсированный режим
+forceModeTempLowEdge = %.0f -- Пока температура не превысит это значение, программа будет работать в форсированном режиме, иначе - перейдет в безопасный режим;
+forceModeStepCase = %.0f -- Если разница между текущей выработкой энергии и выставленным потоком превысит это значение, то к потоку добавится
+forceModeStep = %.0f -- это значение
+-- Безопасный режим
+safeModeTempWaitEdge = %.0f -- Если температура превысит это значение, программа будет ожидать,
+safeModeTempToWaitEdge = %.0f -- пока температура не понизится до этого значения;
+safeModeStepCase = %.0f -- Если разница между текущей выработкой энергии и выставленным потоком превысит это значение, то к потоку добавится
+safemodeStep = %.0f -- это значение]],
+cfg.default_interval,
+cfg.ctrl_interval,
+cfg.shift_interval,
+cfg.ctrlShift_interval,
+cfg.shield,
+cfg.tempCriticalEdge,
+cfg.forceModeTempLowEdge,
+cfg.forceModeStepCase,
+cfg.forceModeStep,
+cfg.safeModeTempWaitEdge,
+cfg.safeModeTempToWaitEdge,
+cfg.safeModeStepCase,
+cfg.safemodeStep
+))
+file:close()
+end
+end
+local function makeConfig(tab,tab2)
+local config = {}
+for i=1,#tab do
+config[i] = i
+end
+local iter = 1
+for k,v in pairs(config) do
+k = tab[iter]
+v = tab2[iter]
+config[tostring(k)] = v
+iter = iter + 1
+end
+for i=1,#tab do
+config[i] = nil
+end
+return config
+end
+local function fileCreate(name)
+local file = io.open(name,"a")
+file:close()
+end
+configWrite(cfgName)
+cfg = makeConfig(confnames,readParse(cfgName))
+local function fileWrite(name,uadr,dadr)
+local file = io.open(name,"w")
+file:write(uadr.."\n"..dadr.."\n")
+file:close()
+end
+local function fileRead(name)
+local file = io.open(name,"r")
+local uadr,dadr = file:read("*l","*l")
+file:close()
+return uadr,dadr
+end
+local color = { }
+color["red"]   = 0xFF0000
+color["green"] = 0x00FF00
+color["yellow"] = 0xFFFF00
+color["skyblue"] = 0x00FFFF
+color["black"]   = 0x000000
+color["grey"]   = 0xC0C0C0
+color["blue"]   = 0x000080
+color["white"] = 0xFFFFFF
+local rback = gpu.getBackground()
+local rfore = gpu.getForeground()
+local handleMain
+local handleOptions
+local handleStart
+local menuItem = {}
+menuItem["options"] = 
+{
+["name"] ="Настройки |",
+["x"] = 1,
+["y"] = 2
+}
+menuItem["save"] = 
+{
+["name"] ="Сохранить |",
+["x"] = 1,
+["y"] = 2
+}
+menuItem["cancel"] = 
+{
+["name"] =" Отменить",
+["x"] = 12,
+["y"] = 2
+}
+local xz,yz = gpu.maxResolution()
+gpu.setResolution(80,25)
+gpu.setBackground(0xF0F0F0)
+gpu.setForeground(0x000000)
+local prog = true
+local addCord = {}
+local subCord = {}
+local num = {}
+num["name"] = "Число : "
+num["value"] = 0
+local OptionDefault = {}
+local OptionCtrl = {}
+local OptionShift = {}
+local OptionCtrlShift = {}
+local OptionShield = {}
+OptionDefault["value"] = cfg.default_interval
+OptionCtrl["value"] = cfg.ctrl_interval
+OptionShift["value"] = cfg.shift_interval
+OptionCtrlShift["value"] = cfg.ctrlShift_interval
+OptionShield["value"] = cfg.shield
+local flux = {}
+flux["up"] = 
+{
+["adr"] = nil,
+["x"] = nil,
+["y"] = nil
+}
+flux["down"] = 
+{
+["adr"] = nil,
+["x"] = nil,
+["y"] = nil
+}
+local infcord =
+{
+["status"] = 
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["temp"] = 
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["generation"] =
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["flow"] =
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["puregen"] =
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["drain"] = 
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["fstrth"] =
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["esturn"] =
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["fuel"] =
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["fuelconv"] =
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	},
+["core"] =
+	{
+	["value"] = nil,
+	["x"] = nil,
+	["y"] = nil
+	}
+}
+local button =
+{
+["continue"] = 
+	{ 
+	["name"] = "Продолжить",
+	["x"] = nil,
+	["y"] = nil
+	},
+["change"] =
+	{
+	["name"] = "Изменить",
+	["x"] = nil,
+	["y"] = nil
+	},
+["add"] =
+	{
+	["name"] = " + ",
+	["x"] = nil,
+	["y"] = nil
+	},
+["sub"] =
+	{
+	["name"] = " - ",
+	["x"] = nil,
+	["y"] = nil
+	},
+["start"] =
+	{
+	["name"] = "Запустить реактор",
+	["x"] = nil,
+	["y"] = nil,
+	["visible"] = nil
+	},
+["stop"] =
+	{
+	["name"] = "Выключить реактор",
+	["x"] = nil,
+	["y"] = nil,
+	["visible"] = nil
+	},
+["charge"] =
+	{
+	["name"] = "Зарядить реактор ",
+	["x"] = nil,
+	["y"] = nil,
+	["visible"] = nil
+	},
+["autoon"] =
+	{
+	["name"] = "Включен",
+	["x"] = nil,
+	["y"] = nil,	
+	},
+["autooff"] =
+	{
+	["name"] = "Выключен",
+	["x"] = nil,
+	["y"] = nil,	
+	}
+}
+local ops = true
+local upchoose = true
+local downchoose = true
+local conf = false
+local buts = false
+local canedit = true
+local canclose = true
+local temprise
+local autostate = true
+local upadr = nil
+local downadr = nil
+printf = function (s,...)
+return io.write(s:format(...))
+end
+local function guiWrite(x,y,cf,cb,s,...)
+term.setCursor(x,y)
+if cf >=0 and cb >=0 then
+local fg = gpu.getForeground()
+local bg = gpu.getBackground()
+gpu.setForeground(cf)
+gpu.setBackground(cb)
+printf(s,...)
+gpu.setForeground(fg)
+gpu.setBackground(bg)
+elseif cb <0 and cf>=0 then
+local fg = gpu.getForeground()
+gpu.setForeground(cf)
+printf(s,...)
+gpu.setForeground(fg)
+elseif cf < 0 and cb >= 0 then
+local bg = gpu.getBackground()
+printf(s,...)
+gpu.setBackground(bg)
+else
+printf(s,...)
+end
+end
+local function getCord(param)
+param.x,param.y = term.getCursor()
+return param.x,param.y
+end
+local function guiClear(y)
+local fg = gpu.getForeground()
+local bg = gpu.getBackground()
+gpu.setForeground(color.black)
+gpu.setBackground(color.grey)
+for i=y+3,3,-1 do
+term.setCursor(1,i)
+term.clearLine()
+end
+gpu.setForeground(fg)
+gpu.setBackground(bg)
+end
+local function makeButton(x,y,text)
+term.setCursor(x,y)
+local fg = gpu.getForeground()
+local bg = gpu.getBackground()
+gpu.setBackground(0x000000)
+gpu.setForeground(0xFFFFFF)
+printf(text)
+gpu.setBackground(bg)
+gpu.setForeground(fg)
+end
+local function show(fc,bc,param)
+local fg = gpu.getForeground()
+local bg = gpu.getBackground()
+term.setCursor(param.x,param.y)
+gpu.setForeground(fc)
+gpu.setBackground(bc)
+local st = " "
+for i = 0,#tostring(param.value) do
+st=st.." "
+end
+gpu.set(param.x,param.y,st)
+printf("%.0f",param.value)
+gpu.setForeground(fg)
+gpu.setBackground(bg)
+end
+local function numformat(amount)
+  local formatted = tostring(amount):gsub(" ", "")
+	while true do  
+		formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1 %2')
+		if (k==0) then
+		  break
+		end
+	end
+	return formatted
+end
+local function coreformat()
+local num = com.draconic_rf_storage.getEnergyStored()
+if num > 10^12 then
+return string.format(" Накоплено в ядре: %0.3f T   \n",num/10^12)
+elseif num > 10^9 then 
+return string.format(" Накоплено в ядре: %0.3f B   \n",num/10^9)
+elseif num > 10^6 then
+return string.format(" Накоплено в ядре: %0.3f M   \n",num/10^6)
+elseif num > 10^3 then
+return string.format(" Накоплено в ядре: %0.3f K   \n",num/10^3)
+else
+return string.format(" Накоплено в ядре: %.0f   \n",num)
+end
+end
+-- Анализ и корректировка запомненных адресов
+local function proxyCheck()
+flux.up.adr,flux.down.adr = fileRead(fileName)
+if flux.up.adr ~= nil and flux.down.adr ~= nil then
+if com.get(flux.up.adr) ~= nil and com.get(flux.down.adr) ~=nil then 
+return true
+elseif com.get(flux.up.adr) == nil and com.get(flux.down.adr) == nil then
+flux.up.adr = nil
+flux.down.adr = nil
+return false
+elseif com.get(flux.up.adr) == nil then
+for adrs in com.list("flux_gate") do
+if adrs ~= flux.down.adr then
+flux.up.adr = adrs
+end
+end
+fileWrite(fileName,flux.up.adr,flux.down.adr)
+return true
+elseif com.get(flux.down.adr) == nil then
+for adrs in com.list("flux_gate") do
+if adrs ~= flux.up.adr then
+flux.down.adr = adrs
+end
+end
+fileWrite(fileName,flux.up.adr,flux.down.adr)
+return true
+end
+end
+end
+local function checkButtons()
+local inf = reactor.getReactorInfo()
+infcord.status.value = inf.status
+if infcord.status.value == "offline" then
+guiWrite(button.charge.x,button.charge.y,color.skyblue,color.black,"%s",button.charge.name)
+button.charge.visible = true
+elseif infcord.status.value == "stopping" then 
+if (inf.energySaturation/inf.maxEnergySaturation)*100.0 >=50.0 and (inf.fieldStrength/inf.maxFieldStrength)*100.0 >= 50.0 and inf.temperature > 2000.0 then -- изменил на float
+guiWrite(button.start.x,button.start.y,color.green,color.black,"%s",button.start.name)
+button.start.visible = true
+elseif infcord.status.value ~= "charging" then
+guiWrite(button.charge.x,button.charge.y,color.skyblue,color.black,"%s",button.charge.name)
+button.charge.visible = true
+end
+elseif infcord.status.value == "online" or infcord.status.value == "charging" then
+guiWrite(button.stop.x,button.stop.y,color.red,color.black,"%s",button.stop.name)
+button.stop.visible = true
+elseif infcord.status.value == "charged" then
+guiWrite(button.start.x,button.start.y,color.green,color.black,"%s",button.start.name)
+button.start.visible = true
+guiWrite(button.stop.x,button.stop.y,color.red,color.black,"%s",button.stop.name)
+button.stop.visible = true
+end
+end
+-- Инициализация программы, анализ и настройка всей технической белеберды
+local function screenStart()
+handleMain = false
+handleOptions = false
+handleStart = true
+local x,y = gpu.getResolution()
+gpu.setBackground(0xC0C0C0)
+gpu.setForeground(0x000000)
+term.clear()
+gpu.setBackground(0x000080)
+gpu.setForeground(0xFFFFFF)
+term.clearLine()
+printf("msi afterburner   (Подготовка)\n")
+gpu.setBackground(0xFFFFFF)
+gpu.setForeground(0x000000)
+term.clearLine()
+printf("Это страница для настройки программы при первом запуске или после сбоя")
+gpu.setBackground(0xFF0000)
+gpu.set(x-2,1," X ")
+gpu.setBackground(0xC0C0C0)
+term.setCursor(1,4)
+if not com.isAvailable("draconic_reactor") then 
+printf("подключите адаптер к стабилизатору реактора")
+while not com.isAvailable("draconic_reactor") do
+os.sleep(0)
+if not ops then return end
+end
+guiClear(2)
+end
+reactor = com.draconic_reactor
+local i = 0.0
+for address in com.list("flux_gate") do
+i=i+1.0
+end
+if i<2.0 then
+printf("Подключите адаптеры к обоим флюкс-гейтам")
+while true do
+if not ops then return end
+i=0.0
+for address in com.list("flux_gate") do
+i=i+1.0
+end
+if i == 2.0 then
+break
+end
+os.sleep(0)
+end
+guiClear(2)
+end
+proxyCheck()
+if flux.up.adr == nil or flux.down.adr == nil then
+while not conf do
+buts = false
+if not ops then return end
+i=1.0
+flux[1]=
+{
+["adr"]=nil,
+["x"]=nil,
+["y"]=nil
+}
+flux[2]=
+{
+["adr"]=nil,
+["x"]=nil,
+["y"]=nil
+}
+printf("  Адреса подключенных флюкс-гейтов\n\n")
+for adr in com.list("flux_gate") do
+flux[i].x,flux[i].y = term.getCursor()
+flux[i].adr = adr
+printf ("  "..flux[i].adr.."\n\n")
+i=i+1.0
+end
+printf("  Выберите адрес флюкс-гейта, отвечающего за выработку энергии\n")
+while upchoose do
+os.sleep(0)
+if not ops then return end
+end
+printf("  Выберите адрес флюкс-гейта, отвечающего за стабилизацию реактора\n")
+while downchoose do
+os.sleep(0)
+if not ops then return end
+end
+printf("\n  адрес энергетического гейта :  %s\n",flux.up.adr)
+printf("  адрес стабилизирующего гейта : %s\n",flux.down.adr)
+if reactor.getReactorInfo().status == "offline" then
+com.proxy(com.get(flux.up.adr)).setSignalHighFlow(0 * 1.0)
+com.proxy(com.get(flux.up.adr)).setSignalLowFlow(535000.0) --выставление энергии для вывода из реаkтора
+com.proxy(com.get(flux.down.adr)).setOverrideEnabled(false)
+end
+button.continue.x,button.continue.y = term.getCursor()
+makeButton(button.continue.x+8,button.continue.y+1,button.continue.name)
+button.change.x,button.change.y = term.getCursor()
+makeButton(button.change.x+2,button.change.y,button.change.name)
+while not buts do
+os.sleep(0)
+if not ops then return end
+end
+if flux.up.adr ~= nil and flux.down.adr ~= nil then
+upgate = com.proxy(com.get(flux.up.adr))
+downgate = com.proxy(com.get(flux.down.adr))
+fileWrite(fileName,flux.up.adr,flux.down.adr)
+end
+end
+else
+upgate = com.proxy(com.get(flux.up.adr))
+downgate = com.proxy(com.get(flux.down.adr))
+end
+end
+-- Экран настроек
+local function screenOptions()
+handleMain = false
+handleStart = false
+handleOptions = true
+local x,y = gpu.getResolution()
+gpu.setBackground(0xC0C0C0)
+gpu.setForeground(0x000000)
+term.clear()
+gpu.setBackground(0x000080)
+gpu.setForeground(0xFFFFFF)
+term.clearLine()
+printf("MSI afterburner   (Настройки)\n")
+gpu.setBackground(0xFFFFFF)
+gpu.setForeground(0x000000)
+term.clearLine()
+menuItem.save.x,menuItem.save.y =term.getCursor()
+printf(menuItem.save.name)
+menuItem.cancel.x,menuItem.cancel.y =term.getCursor()
+printf(menuItem.cancel.name)
+gpu.setBackground(0xFF0000)
+gpu.set(x-2,1," X ")
+gpu.setBackground(0xC0C0C0)
+term.setCursor(1,4)
+printf(" Интервал для щелчка: ")
+OptionDefault["x"],OptionDefault["y"] = term.getCursor()
+printf("%.0f\n",OptionDefault.value)
+printf(" Интервал для CTRL: ")
+OptionCtrl["x"],OptionCtrl["y"] = term.getCursor()
+printf("%.0f\n",OptionCtrl.value)
+printf(" Интервал для SHIFT: ")
+OptionShift["x"],OptionShift["y"] = term.getCursor()
+printf("%.0f\n",OptionShift.value)
+printf(" Интервал для CTRL+SHIFT: ")
+OptionCtrlShift["x"],OptionCtrlShift["y"] = term.getCursor()
+printf("%.0f\n",OptionCtrlShift.value)
+printf(" Уровень щитов: ")
+OptionShield["x"],OptionShield["y"] = term.getCursor()
+printf("%.0f\n",OptionShield.value)
+end
+-- Инициализация главного экрана
+local function screenMain()
+handleOptions = false
+handleStart = false
+handleMain = true
+local x,y = gpu.getResolution()
+local inf = reactor.getReactorInfo()
+infcord.status.value = inf.status
+gpu.setBackground(0xC0C0C0)
+gpu.setForeground(0x000000)
+term.clear()
+gpu.setBackground(0x000080)
+gpu.setForeground(0xFFFFFF)
+term.clearLine()
+printf("MSI afterburner\n")
+gpu.setBackground(0xFFFFFF)
+gpu.setForeground(0x000000)
+term.clearLine()
+menuItem.options.x,menuItem.options.y =term.getCursor()
+printf(menuItem.options.name)
+gpu.setBackground(0xFF0000)
+gpu.set(x-2,1," X ")
+gpu.setBackground(0xC0C0C0)
+term.setCursor(1,4)
+gpu.setBackground(0x909090)
+printf(" Температура:     ")
+gpu.setBackground(0xC0C0C0)
+printf(" ")
+getCord(infcord.temp)
+guiWrite(infcord.temp.x,infcord.temp.y,-1,-1,"%0.2f\n",inf.temperature)
+printf(" Вырабатывает:     ")
+getCord(infcord.generation)
+guiWrite(infcord.generation.x,infcord.generation.y,-1,-1,"%s  \n",numformat(inf.generationRate))
+gpu.setBackground(0x909090)
+printf (" Поток:           ")
+gpu.setBackground(0xC0C0C0)
+printf(" ")
+getCord(infcord.flow)
+infcord.flow.value = upgate.getFlow()
+guiWrite(infcord.flow.x,infcord.flow.y,-1,-1,"%s  ",numformat(infcord.flow.value))
+getCord(button.add)
+makeButton(button.add.x + 4, button.add.y ,button.add.name)
+getCord(button.sub)
+makeButton(button.sub.x+2,button.sub.y,button.sub.name)
+printf("\n")
+printf (" Итоговая мосч:    ")
+getCord(infcord.puregen)
+guiWrite(infcord.puregen.x,infcord.puregen.y,-1,-1,"%s  \n",numformat(inf.generationRate - downgate.getFlow()))
+gpu.setBackground(0x909090)
+printf (" Поглощает:       ")
+gpu.setBackground(0xC0C0C0)
+printf(" ")
+getCord(infcord.drain)
+guiWrite(infcord.drain.x,infcord.drain.y,-1,-1,"%s  \n",numformat(downgate.getFlow()))
+printf (" Мощность поля:    ")
+getCord(infcord.fstrth)
+if inf.maxFieldStrength > 0 then
+guiWrite(infcord.fstrth.x,infcord.fstrth.y,-1,-1,"%.0f / %.0f (%0.2f %%) \n",inf.fieldStrength -inf.fieldDrainRate,inf.maxFieldStrength,((inf.fieldStrength-inf.fieldDrainRate)/inf.maxFieldStrength)*100.0)
+else
+guiWrite(infcord.fstrth.x,infcord.fstrth.y,-1,-1,"0 / 0 (0 %%) \n")
+end
+gpu.setBackground(0x909090)
+printf (" Насыщенность:    ")
+gpu.setBackground(0xC0C0C0)
+printf(" ")
+getCord(infcord.esturn)
+if inf.maxEnergySaturation > 1.0 * 0 then
+guiWrite(infcord.esturn.x,infcord.esturn.y,-1,-1,"%.0f / %.0f (%0.2f %%) \n",inf.energySaturation,inf.maxEnergySaturation,(inf.energySaturation/inf.maxEnergySaturation)*100.0)
+else
+guiWrite(infcord.esturn.x,infcord.esturn.y,-1,-1,"0 / 0 (0 %%) \n")
+end
+printf (" топливо:          ")
+getCord(infcord.fuel)
+if inf.fuelConversion/inf.maxFuelConversion < 0.78 then
+guiWrite(infcord.fuel.x,infcord.fuel.y,-1,-1,"%.0f / %.0f (%0.2f %%)                           \n",inf.fuelConversion,inf.maxFuelConversion,(inf.fuelConversion/inf.maxFuelConversion)*100.0)
+else
+if inf.maxFuelConversion > 0.0 then
+if inf.status == "online" or inf.status == "charging" or inf.status == "charged" then
+guiWrite(infcord.fuel.x,infcord.fuel.y,color.red,-1,"%.0f / %.0f (%0.2f %%) Критический уровень топлива\n",inf.fuelConversion,inf.maxFuelConversion,(inf.fuelConversion/inf.maxFuelConversion)*100.0)
+else
+guiWrite(infcord.fuel.x,infcord.fuel.y,-1,-1,"%.0f / %.0f (%0.2f %%) Критический уровень топлива\n",inf.fuelConversion,inf.maxFuelConversion,(inf.fuelConversion/inf.maxFuelConversion)*100.0)
+end
+else
+guiWrite(infcord.fuel.x,infcord.fuel.y,-1,-1,"0 / 0 (0 %%)                           \n")
+end
+end
+gpu.setBackground(0x909090)
+printf (" расход топлива:  ")
+gpu.setBackground(0xC0C0C0)
+printf(" ")
+getCord(infcord.fuelconv)
+guiWrite(infcord.fuelconv.x,infcord.fuelconv.y,-1,-1,"%.0f\n",inf.fuelConversionRate)
+getCord(infcord.core)
+if com.isAvailable("draconic_rf_storage") then
+guiWrite(infcord.core.x,infcord.core.y,-1,-1,coreformat())
+end
+printf("\n")
+getCord(button.stop)
+getCord(button.start)
+getCord(button.charge)
+button.start.y = button.stop.y+2
+button.charge.y = button.stop.y +2
+printf("                   Автономный режим: ")
+getCord(button.autoon)
+getCord(button.autooff)
+if not autostate then 
+guiWrite(button.autooff.x,button.autooff.y,color.red,color.black,"%s\n",button.autooff.name)
+else
+guiWrite(button.autoon.x,button.autoon.y,color.green,color.black,"%s\n",button.autoon.name)
+end
+checkButtons()
+end
+local screen = {}
+screen["main"] = screenMain
+screen["options"] = screenOptions
+local function editOption(param)
+local rd = true
+while rd do
+gpu.fill(param.x, param.y, #tostring(param.value), 1, " ")
+term.setCursor(param.x,param.y)
+param.value = term.read(false,false)
+local val = tonumber(param.value)
+if val then
+show(color.black,color.grey,param)
+rd = false
+end
+end
+canedit = true
+canclose = true
+screen.options()
+end
+local function add(n,i)
+n.value=n.value+i
+upgate.setSignalLowFlow(n.value * 1.0)
+return n.value
+end
+local function sub(n,i)
+term.setCursor(n.x,n.y)
+n.value=n.value-i
+return n.value
+end
+-- Обновление информации на экране + анализ поведения температуры
+local function refreshInfo()
+local inf = reactor.getReactorInfo()
+infcord.status.value = inf.status
+local tbuf1 = inf.temperature * 1.0
+os.sleep(0)
+local tbuf2 = reactor.getReactorInfo().temperature
+if handleMain then
+if tbuf2>tbuf1 then
+guiWrite(infcord.temp.x,infcord.temp.y,color.red,-1.0,"%0.2f \n",inf.temperature)
+temprise = true
+elseif tbuf2<tbuf1 then
+guiWrite(infcord.temp.x,infcord.temp.y,color.blue,-1.0,"%0.2f \n",inf.temperature)
+temprise = false
+else
+if inf.temperature == 2000.0 then
+guiWrite(infcord.temp.x,infcord.temp.y,-1.0,-1.0,"%0.2f \n",inf.temperature)
+end
+end
+guiWrite(infcord.generation.x,infcord.generation.y,-1.0,-1.0,"%s\n",numformat(inf.generationRate))
+infcord.flow.value = upgate.getFlow()
+guiWrite(infcord.flow.x,infcord.flow.y,-1.0,-1.0,"%s",numformat(infcord.flow.value))
+guiWrite(infcord.puregen.x,infcord.puregen.y,-1.0,-1.0,"%s\n",numformat(inf.generationRate - downgate.getFlow()))
+infcord.drain.value = inf.fieldDrainRate
+guiWrite(infcord.drain.x,infcord.drain.y,-1.0,-1.0,"%s\n",numformat(downgate.getFlow()))
+if inf.maxFieldStrength > 0.0 then
+guiWrite(infcord.fstrth.x,infcord.fstrth.y,-1.0,-1.0,"%.0f / %.0f (%0.2f %%) \n",inf.fieldStrength-inf.fieldDrainRate,inf.maxFieldStrength,((inf.fieldStrength-inf.fieldDrainRate)/inf.maxFieldStrength)*100.0)
+else
+guiWrite(infcord.fstrth.x,infcord.fstrth.y,-1.0,-1.0,"0 / 0 (0 %%) \n")
+end
+if inf.maxEnergySaturation > 1.0 * 0 then
+guiWrite(infcord.esturn.x,infcord.esturn.y,-1.0,-1.0,"%.0f / %.0f (%0.2f %%) \n",inf.energySaturation,inf.maxEnergySaturation,(inf.energySaturation/inf.maxEnergySaturation)*100.0)
+else
+guiWrite(infcord.esturn.x,infcord.esturn.y,-1.0,-1.0,"0 / 0 (0 %%) \n")
+end
+if inf.fuelConversion/inf.maxFuelConversion < 0.78 then
+guiWrite(infcord.fuel.x,infcord.fuel.y,-1.0,-1.0,"%.0f / %.0f (%0.2f %%) \n",inf.fuelConversion,inf.maxFuelConversion,(inf.fuelConversion/inf.maxFuelConversion)*100.0)
+else
+if inf.maxFuelConversion > 0.0 then
+if inf.status == "online" or inf.status == "charging" or inf.status == "charged" then
+guiWrite(infcord.fuel.x,infcord.fuel.y,color.red,-1.0,"%.0f / %.0f (%0.2f %%) Критический уровень топлива\n",inf.fuelConversion,inf.maxFuelConversion,(inf.fuelConversion/inf.maxFuelConversion)*100.0)
+else
+guiWrite(infcord.fuel.x,infcord.fuel.y,-1.0,-1.0,"%.0f / %.0f (%0.2f %%) Критический уровень топлива\n",inf.fuelConversion,inf.maxFuelConversion,(inf.fuelConversion/inf.maxFuelConversion)*100.0)
+end
+else
+guiWrite(infcord.fuel.x,infcord.fuel.y,-1.0,-1.0,"0 / 0 (0 %%)\n")
+end
+end
+guiWrite(infcord.fuelconv.x,infcord.fuelconv.y,-1.0,-1.0,"%.0f\n",inf.fuelConversionRate)
+com.proxy(com.get(flux.down.adr))
+if com.isAvailable("draconic_rf_storage") then
+guiWrite(infcord.core.x,infcord.core.y,-1.0,-1.0,coreformat())
+if button.stop.y ~= infcord.core.y + 2.0 then
+screenMain()
+end
+elseif button.stop.y ~= infcord.fuelconv.y + 2.0 then
+screenMain()
+end
+checkButtons()
+end
+end
+-- Алгоритм автономного режима
+local waittemp
+local function auto(state)
+if state then
+local inf = reactor.getReactorInfo()
+downflow = inf.fieldDrainRate / (1.0 - (cfg.shield/100.0))
+downgate.setOverrideEnabled(true)
+downgate.setFlowOverride(downflow)
+
+if inf.temperature < cfg.forceModeTempLowEdge then
+if (infcord.flow.value - inf.generationRate) * 1.0 <= cfg.forceModeStepCase then
+upgate.setSignalLowFlow((infcord.flow.value + cfg.forceModeStep) * 1.0)
+guiWrite(infcord.flow.x,infcord.flow.y,color.red,color.grey,"%s",numformat(infcord.flow.value))
+end
+elseif (infcord.flow.value - inf.generationRate) * 1.0 <= cfg.safeModeStepCase and inf.temperature >= cfg.forceModeTempLowEdge then
+if not waittemp and not waitfield then
+upgate.setSignalLowFlow((upgate.getSignalLowFlow() + cfg.safemodeStep)* 1.0)
+guiWrite(infcord.flow.x,infcord.flow.y,color.red,color.grey,"%s",numformat(infcord.flow.value))
+elseif inf.temperature < cfg.safeModeTempToWaitEdge then
+waittemp = false
+end
+elseif temprise and inf.temperature >= cfg.safeModeTempWaitEdge then
+if inf.temperature > cfg.safeModeTempWaitEdge then
+waittemp = true
+end
+if inf.temperature > cfg.tempCriticalEdge then
+upgate.setSignalLowFlow(inf.generationRate - 1000.0) -- изменено на float
+end
+end
+else 
+if infcord.status.value == "charging" then
+downflow = 900000.0 -- изменено на float
+else
+downflow = (infcord.drain.value / (1.0 - (cfg.shield/100.0))) * 1.0 -- изменено на float
+end
+downgate.setOverrideEnabled(false) --выключено переопределение настроек
+downgate.setSignalHighFlow(downflow * 1.0)
+downgate.setSignalLowFlow(downflow * 1.0)
+end
+end
+-- Обработчик событий
+local function tcall(type,scrnAdr,x,y,btn,player)
+local rx,ry = gpu.getResolution()
+-- выход
+if x >= rx-2.0 and x <= rx and y == 1.0 then -- изменено на float
+event.ignore("touch",tcall)
+prog = false
+ops = false
+end
+-- Стартовый экран
+if handleStart then
+if x >= flux[1].x and x <= flux[1].x + #flux[1].adr - 1.0 and y == flux[1].y and upchoose then
+flux.up.adr = flux[1].adr
+upchoose = false
+return
+end 
+if x >= flux[2].x and x <= flux[2].x + #flux[2].adr - 1.0 and y == flux[2].y and upchoose then
+flux.up.adr = flux[2].adr
+upchoose = false
+return
+end
+if x >= flux[1].x and x <= flux[1].x + #flux[1].adr - 1.0 and y == flux[1].y and downchoose then
+flux.down.adr = flux[1].adr
+downchoose = false
+return
+end 
+if x >= flux[2].x and x <= flux[2].x + #flux[2].adr - 1.0 and y == flux[2].y and downchoose then
+flux.down.adr = flux[2].adr
+downchoose = false
+return
+end 
+if x >= button.continue.x + 8.0 and x <= button.continue.x + 7.0 + #button.continue.name/2.0 and y == button.continue.y + 1.0 and flux.up.adr ~= nil and flux.down.adr ~= nil then -- изменено на float
+conf = true
+buts = true
+screenMain()
+return
+end
+if x >= button.change.x + 2.0 and x <= button.change.x + 1.0 + #button.change.name/2.0 - 1.0 and y == button.change.y and flux.up.adr ~= nil and flux.down.adr ~= nil then -- изменено на float
+conf = false
+buts = true
+com.proxy(com.get(flux.down.adr)).setOverrideEnabled(false)
+flux.up.adr = nil
+flux.down.adr = nil
+upchoose = true
+downchoose = true
+guiClear(16)
+return
+end
+end
+-- Главный экран
+if handleMain then 
+-- Увеличение
+if x >= button.add.x+4 and x <= button.add.x+3.0+#button.add.name and y == button.add.y then
+if keyb.isShiftDown() then
+if keyb.isControlDown() then
+upgate.setSignalLowFlow(add(infcord.flow,cfg.ctrlShift_interval)* 1.0)
+else
+upgate.setSignalLowFlow(add(infcord.flow,cfg.shift_interval)* 1.0) 
+end
+else
+if keyb.isControlDown() then
+upgate.setSignalLowFlow(add(infcord.flow,cfg.ctrl_interval)* 1.0) 
+else
+upgate.setSignalLowFlow(add(infcord.flow,cfg.default_interval)* 1.0)
+end
+end
+guiWrite(infcord.flow.x,infcord.flow.y,color.red,color.grey,"%s",numformat(infcord.flow.value))
+end
+--Уменьшение
+if x >= button.sub.x+2.0 and x <= button.sub.x+1+#button.sub.name and y == button.sub.y then
+if keyb.isShiftDown() then
+if keyb.isControlDown() then
+upgate.setSignalLowFlow(sub(infcord.flow,cfg.ctrlShift_interval)* 1.0) 
+else
+upgate.setSignalLowFlow(sub(infcord.flow,cfg.shift_interval)* 1.0) 
+end
+else
+if keyb.isControlDown() then
+upgate.setSignalLowFlow(sub(infcord.flow,cfg.ctrl_interval)* 1.0) 
+else
+upgate.setSignalLowFlow(sub(infcord.flow,cfg.default_interval)* 1.0) 
+end
+end
+guiWrite(infcord.flow.x,infcord.flow.y,color.blue,color.grey,"%s",numformat(infcord.flow.value))
+end
+if not autostate then
+if x >= button.autooff.x and x <= button.autooff.x+#button.autooff.name/2.0-1.0 and y == button.autooff.y then
+gpu.set(button.autooff.x, button.autooff.y,"        ")
+autostate = true
+guiWrite(button.autoon.x,button.autoon.y,color.green,color.black,"%s\n",button.autoon.name)
+end
+else
+if x >= button.autoon.x and x <= button.autoon.x+#button.autoon.name/2.0-1.0 and y == button.autoon.y then
+gpu.set(button.autoon.x, button.autoon.y,"       ")
+autostate = false
+guiWrite(button.autooff.x,button.autooff.y,color.red,color.black,"%s\n",button.autooff.name)
+end
+end
+if button.charge.visible then
+if x >= button.charge.x and x <= button.charge.x+#button.charge.name/2.0 and y == button.charge.y then
+reactor.chargeReactor()
+guiWrite(button.charge.x,button.charge.y,-1.0,color.grey,"                 ",button.charge.name)
+button.charge.visible = false
+end
+end
+if button.start.visible then
+if x >= button.start.x and x <= button.start.x+#button.start.name/2.0-1.0 and y == button.start.y then
+reactor.activateReactor()
+guiWrite(button.start.x,button.start.y,-1.0,color.grey,"                 ",button.start.name)
+button.start.visible = false
+end
+end
+if button.stop.visible then
+if x >= button.stop.x and x <= button.stop.x+#button.stop.name/2.0-1.0 and y == button.stop.y then
+reactor.stopReactor()
+guiWrite(button.stop.x,button.stop.y,-1.0,color.grey,"                 ",button.stop.name)
+button.stop.visible = false
+end
+end
+--меню
+if x>= menuItem.options.x and x <= (menuItem.options.x + #menuItem.options.name/2.0-1.0) and y == menuItem.options.y then
+screenOptions()
+return
+end
+if x == 1.0 and y == 1.0 then
+event.ignore("touch",tcall)
+prog = false
+end
+end
+-- Экран настроек
+if handleOptions then
+-- Работа со значениями
+if canedit then
+if x >= OptionDefault.x and x <= OptionDefault.x + #tostring(OptionDefault.value)-1.0 and y == OptionDefault.y then
+canclose = false
+canedit = false
+editOption(OptionDefault)
+end
+if x >= OptionCtrl.x and x <= OptionCtrl.x + #tostring(OptionCtrl.value)-1.0 and y == OptionCtrl.y then
+canclose = false
+canedit = false
+editOption(OptionCtrl)
+end
+if x >= OptionShift.x and x <= OptionShift.x + #tostring(OptionShift.value)-1.0 and y == OptionShift.y then
+canclose = false
+canedit = false
+editOption(OptionShift)
+end
+if x >= OptionCtrlShift.x and x <= OptionCtrlShift.x + #tostring(OptionCtrlShift.value)-1.0 and y == OptionCtrlShift.y then
+canclose = false
+canedit = false
+editOption(OptionCtrlShift)
+end
+if x >= OptionShield.x and x <= OptionShield.x + #tostring(OptionShield.value)-1.0 and y == OptionShield.y then
+canclose = false
+canedit = false
+editOption(OptionShield)
+end
+end
+-- меню
+if canclose then
+if x>= menuItem.save.x and x <= (menuItem.save.x + #menuItem.save.name/2.0-1.0) and y == menuItem.save.y then
+cfg.default_interval = OptionDefault.value
+cfg.ctrl_interval = OptionCtrl.value
+cfg.shift_interval = OptionShift.value
+cfg.ctrlShift_interval = OptionCtrlShift.value
+cfg.shield = OptionShield.value
+configWrite(cfgName)
+screenMain()
+end
+if x>= menuItem.cancel.x and x <= (menuItem.cancel.x + #menuItem.cancel.name/2.0-1.0) and y == menuItem.cancel.y then
+OptionDefault.value = cfg.default_interval
+OptionCtrl.value = cfg.ctrl_interval
+OptionShift.value = cfg.shift_interval
+OptionCtrlShift.value = cfg.ctrlShift_interval
+OptionShield.value = cfg.ctrlShift_interval
+screenMain()
+return
+end
+end
+end
+end
+event.listen("touch",tcall)
+fileCreate(fileName)
+flux.up.adr,flux.down.adr = fileRead(fileName)
+screenStart()
+if upgate ~= nil and downgate ~= nil then
+screen.main()
+end
+while prog do
+if not pcall(refreshInfo) then
+autostate = false
+if not pcall (screenStart) then
+break
+end
+if not pcall(screenMain) then
+screenStart()
+if not pcall(screenMain) then
+break
+end
+end
+end
+auto(autostate)
+os.sleep(0)
+end
+gpu.setBackground(rback)
+gpu.setForeground(rfore)
+gpu.setResolution(xz,yz)
+term.clear()
